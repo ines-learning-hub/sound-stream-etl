@@ -4,7 +4,6 @@ import json
 import traceback
 
 def main(event, context):
-    print('entro')
     try:
         # s3 = boto3.client("s3", endpoint_url="http://localhost:4566")
         endpoint_url = os.environ.get("LOCALSTACK_ENDPOINT", "http://localhost:4566")
