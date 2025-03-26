@@ -1,1 +1,1 @@
-{"statusCode": 200, "body": "\"archivo.txt subido correctamente a my-local-bucket. /tmp/archivo.txt, http://172.31.205.25:4566\""}
+{"statusCode": 200, "body": "\"archivo.txt subido correctamente a my-local-bucket.\""}

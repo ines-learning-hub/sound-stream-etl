@@ -94,7 +94,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-000000000000-us-east-1",
-     "S3Key": "1f315ae47d8680074cdb59e447567daa945caa4b70104aa81f427167685ee419.zip"
+     "S3Key": "a1e25a440c36d77d8e83299553d6b8cd175c4d95b6c76efedac122016f9ad43b.zip"
     },
     "Environment": {
      "Variables": {
@@ -121,7 +121,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "LambdaS3LocalStack/SaveToS3Function/Resource",
-    "aws:asset:path": "asset.1f315ae47d8680074cdb59e447567daa945caa4b70104aa81f427167685ee419",
+    "aws:asset:path": "asset.a1e25a440c36d77d8e83299553d6b8cd175c4d95b6c76efedac122016f9ad43b",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
