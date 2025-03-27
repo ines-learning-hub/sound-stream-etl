@@ -1,49 +1,127 @@
-// Crear el contexto de audio para generar y procesar sonidos
+// Crear el contexto de audio 
 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-// Crear un oscilador para generar tonos base
+// Crear el oscilador
 const oscillator = audioContext.createOscillator();
-oscillator.type = 'sawtooth'; // Onda de diente de sierra para sonido áspero
-oscillator.frequency.value = 120; // Frecuencia inicial del oscilador (120 Hz)
+oscillator.type = 'sawtooth'; 
+oscillator.frequency.value = 120; 
 
-// Crear un nodo de ganancia para controlar el volumen
+// Crear el nodo de ganancia (controlar el volumen)
 const gainNode = audioContext.createGain();
-gainNode.gain.value = 0.3; // Volumen inicial del sonido
+gainNode.gain.value = 0.3; 
 
-// Nodo de ruido blanco (simula el ruido de una máquina)
-const bufferSize = 4096; // Tamaño del búfer para el procesador
+// Nodo de ruido blanco 
+const bufferSize = 4096;
 const noiseNode = audioContext.createScriptProcessor(bufferSize, 1, 1);
-// Genera ruido blanco cada vez que se procesa audio
 noiseNode.onaudioprocess = (e) => {
   const output = e.outputBuffer.getChannelData(0);
   for (let i = 0; i < bufferSize; i++) {
-    output[i] = Math.random() * 2 - 1; // Genera valores aleatorios entre -1 y 1
+    output[i] = Math.random() * 2 - 1; 
   }
 };
 
 // Filtro pasa bajos para suavizar el ruido
 const filter = audioContext.createBiquadFilter();
-filter.type = 'lowpass'; // Tipo del filtro (pasa bajos)
-filter.frequency.value = 2000; // Frecuencia de corte inicial (2000 Hz)
+filter.type = 'lowpass'; 
+filter.frequency.value = 2000; 
 
-// Conectar nodos entre sí
-oscillator.connect(gainNode); // El oscilador pasa por el nodo de ganancia
-noiseNode.connect(filter); // El ruido pasa primero por el filtro
-filter.connect(gainNode); // El filtro pasa al nodo de ganancia
-gainNode.connect(audioContext.destination); // Todo llega al destino (altavoces)
+// Conectar los nodos 
+oscillator.connect(gainNode); 
+noiseNode.connect(filter); 
+filter.connect(gainNode); 
+gainNode.connect(audioContext.destination); 
 
 // Función para cambiar la frecuencia del oscilador automáticamente
 function changeFrequency() {
-  const newFrequency = Math.random() * 300 + 100; // Genera una nueva frecuencia entre 100 y 400 Hz
-  oscillator.frequency.setValueAtTime(newFrequency, audioContext.currentTime); // Cambia la frecuencia
-  console.log(`Nueva frecuencia: ${newFrequency} Hz`); // Imprime la nueva frecuencia en consola
+  const newFrequency = Math.random() * 300 + 100; 
+  oscillator.frequency.setValueAtTime(newFrequency, audioContext.currentTime); 
+  console.log(`Nueva frecuencia: ${newFrequency} Hz`); 
 }
 
-// Agregar un evento al botón para iniciar el sonido
-document.getElementById('start-button').addEventListener('click', () => {
-  audioContext.resume().then(() => {
-    oscillator.start(); // Inicia el oscilador
+// Configurar variables para grabación
+let mediaRecorder;
+let audioChunks = [];
+let stopTimeout;
+
+// Función para iniciar la grabación
+async function startRecording() {
+  try {
+    // Crear un stream a partir del nodo de destino de audio
+    const audioStream = audioContext.createMediaStreamDestination();
+    gainNode.connect(audioStream); // Conectar el nodo final al destino de grabación
+
+    // Configurar el MediaRecorder con el stream de audio
+    mediaRecorder = new MediaRecorder(audioStream.stream);
+
+    mediaRecorder.ondataavailable = (event) => {
+      audioChunks.push(event.data); // Almacenar los fragmentos grabados
+    };
+
+    mediaRecorder.onstop = async () => {
+      // Crear un Blob con el audio grabado
+      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+      audioChunks = []; // Limpiar los fragmentos para la próxima grabación
+
+      // Enviar el archivo de audio a Lambda
+      await sendToLambda(audioBlob);
+    };
+
+    mediaRecorder.start(5000); // Grabar en bloques de 5 segundos
+    console.log("Grabación iniciada");
+
+    // Configurar temporizador para detener después de 30 segundos
+    stopTimeout = setTimeout(() => {
+      stopRecording();
+    }, 30000); // 30 segundos
+  } catch (error) {
+    console.error("Error al iniciar la grabación:", error);
+  }
+}
+
+// Función para detener la grabación
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop(); // Detener la grabación
+    console.log("Grabación detenida");
+  }
+  clearTimeout(stopTimeout); // Limpiar el temporizador
+}
+
+// Función para enviar audio a Lambda
+async function sendToLambda(audioBlob) {
+  const lambdaApiUrl = 'http://localhost:4566/restapis/2ouxiqjnyl/prod/_user_request_/items';
+
+  try {
+    const response = await fetch(lambdaApiUrl, {
+      method: 'POST',
+      headers: {
+        "Content-Type": "application/octet-stream", // Indicar que se envía un archivo binario
+      },
+      body: audioBlob, // Enviar directamente el Blob como cuerpo
+      mode: 'cors', // Habilitar CORS
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+    console.log("Audio enviado exitosamente a Lambda.");
+  } catch (error) {
+    console.error("Error al enviar audio a Lambda:", error);
+  }
+}
+
+
+// Iniciar automáticamente el sonido y la grabación al cargar la página
+(async () => {
+  try {
+    await audioContext.resume();
+    oscillator.start();
     console.log("Sonido de maquinaria iniciado.");
-    setInterval(changeFrequency, 2000); // Cambia la frecuencia cada 2 segundos
-  });
-});
+
+    setInterval(changeFrequency, 2000); // Cambiar la frecuencia periódicamente
+    startRecording(); // Iniciar grabación de audio
+  } catch (error) {
+    console.error('Error al iniciar el sonido:', error);
+  }
+})();

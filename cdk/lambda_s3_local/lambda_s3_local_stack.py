@@ -1,5 +1,11 @@
-from aws_cdk import Stack, Environment, aws_lambda as _lambda, aws_s3 as s3
-from aws_cdk import Duration
+from aws_cdk import (
+    Stack,
+    Environment,
+    aws_lambda as _lambda,
+    aws_s3 as s3,
+    aws_apigateway as apigateway,
+    Duration
+)
 from constructs import Construct
 import os
 from dotenv import load_dotenv
@@ -25,3 +31,25 @@ class LambdaS3LocalStack(Stack):
         )
 
         bucket.grant_put(lambda_fn)
+
+        # Crear API Gateway y conectar la Lambda
+        api = apigateway.LambdaRestApi(
+            self,
+            "SaveToS3Api",
+            handler=lambda_fn,
+            proxy=False,
+            rest_api_name="SaveToS3API",
+            default_cors_preflight_options={
+                "allow_origins": ["*"],  # Permitir solo solicitudes desde localhost:5500
+                "max_age": Duration.seconds(86400),
+                "allow_methods": ["OPTIONS", "POST"],  # Permitir solo el método POST
+                "allow_headers": ["Content-Type"],  # Especificar encabezados permitidos
+            },
+        )
+
+        # Agregar recurso "items" y habilitar el método POST
+        items = api.root.add_resource("items")  # Define /items como recurso
+        items.add_method(
+            "POST",
+            apigateway.LambdaIntegration(lambda_fn),
+        )

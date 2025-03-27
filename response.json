@@ -1,1 +1,1 @@
-{"statusCode": 200, "body": "\"archivo.txt subido correctamente a my-local-bucket.\""}
+{"statusCode": 400, "body": "No se proporcion\u00f3 ning\u00fan archivo en la solicitud."}
