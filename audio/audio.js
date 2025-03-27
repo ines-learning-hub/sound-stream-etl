@@ -89,23 +89,28 @@ function stopRecording() {
 
 // Función para enviar audio a Lambda
 async function sendToLambda(audioBlob) {
-  const lambdaApiUrl = 'http://localhost:4566/restapis/fmu3tmgpbe/prod/_user_request_/items';
-
-  const formData = new FormData();
-  formData.append('file', audioBlob, `audio_${Date.now()}.wav`);
+  const lambdaApiUrl = 'http://localhost:4566/restapis/2ouxiqjnyl/prod/_user_request_/items';
 
   try {
     const response = await fetch(lambdaApiUrl, {
       method: 'POST',
-      body: formData,
+      headers: {
+        "Content-Type": "application/octet-stream", // Indicar que se envía un archivo binario
+      },
+      body: audioBlob, // Enviar directamente el Blob como cuerpo
+      mode: 'cors', // Habilitar CORS
     });
 
-    const result = await response.json();
-    console.log("Respuesta de Lambda:", result.message);
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status}`);
+    }
+
+    console.log("Audio enviado exitosamente a Lambda.");
   } catch (error) {
     console.error("Error al enviar audio a Lambda:", error);
   }
 }
+
 
 // Iniciar automáticamente el sonido y la grabación al cargar la página
 (async () => {

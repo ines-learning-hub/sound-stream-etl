@@ -4,6 +4,7 @@ STACK_NAME=LambdaS3LocalStack
 ENDPOINT=http://localhost:4566
 BUCKET_NAME=my-local-bucket
 LAMBDA_NAME=SaveToS3Function
+API_ID=$(shell awslocal apigateway get-rest-apis | grep '"id"' | head -1 | awk -F'"' '{print $$4}')
 
 ### CDK ###
 bootstrap:
@@ -47,9 +48,9 @@ list-api:
 
 invoke-api:
 	curl -X POST \
-        -H "Content-Type: application/json" \
+        -H "Content-Type: application/octet-stream" \
         -d '{"audioData": {"oscillator": {"type": "sawtooth", "frequency": 120}, "gain": 0.3, "filter": {"type": "lowpass", "frequency": 2000}}, "timestamp": 1679932800000}' \
-        http://localhost:4566/restapis/<API-ID>/prod/_user_request_/items
+		http://localhost:4566/restapis/$(API_ID)/prod/_user_request_/items
 
 test-api:
 	echo "Reemplaza <API-ID> en el Makefile para probar la API"

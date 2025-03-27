@@ -39,8 +39,17 @@ class LambdaS3LocalStack(Stack):
             handler=lambda_fn,
             proxy=False,
             rest_api_name="SaveToS3API",
+            default_cors_preflight_options={
+                "allow_origins": ["*"],  # Permitir solo solicitudes desde localhost:5500
+                "max_age": Duration.seconds(86400),
+                "allow_methods": ["OPTIONS", "POST"],  # Permitir solo el método POST
+                "allow_headers": ["Content-Type"],  # Especificar encabezados permitidos
+            },
         )
 
-        # Agregar recurso y método POST
+        # Agregar recurso "items" y habilitar el método POST
         items = api.root.add_resource("items")  # Define /items como recurso
-        items.add_method("POST")  # POST para enviar datos a la Lambda
+        items.add_method(
+            "POST",
+            apigateway.LambdaIntegration(lambda_fn),
+        )
