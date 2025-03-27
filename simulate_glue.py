@@ -13,7 +13,7 @@ s3 = boto3.client("s3", endpoint_url="http://172.26.178.148:4566")
 # Buckets y claves
 bucket_audio = "my-audio-bucket"  # Cambiado a un nombre válido
 bucket_audio_out = "my-audio-output-bucket"
-input_key_audio = "engine-6000.wav"
+input_key_audio = "engine-6000.wav" #Esto es una prueba
 
 # Verifica si el bucket existe, y si no, lo crea
 def ensure_bucket_exists(bucket_name):
