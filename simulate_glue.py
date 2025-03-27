@@ -4,6 +4,8 @@ from datetime import datetime
 import noisereduce as nr
 import librosa
 import os
+from scipy.io import wavfile
+import soundfile as sf
 
 # Cliente S3 con LocalStack
 s3 = boto3.client("s3", endpoint_url="http://172.26.178.148:4566")
@@ -11,7 +13,7 @@ s3 = boto3.client("s3", endpoint_url="http://172.26.178.148:4566")
 # Buckets y claves
 bucket_audio = "my-audio-bucket"  # Cambiado a un nombre válido
 bucket_audio_out = "my-audio-output-bucket"
-input_key_audio = "audio_{timestamp}.wav"
+input_key_audio = "engine-6000.wav"
 
 # Verifica si el bucket existe, y si no, lo crea
 def ensure_bucket_exists(bucket_name):
@@ -24,20 +26,20 @@ def ensure_bucket_exists(bucket_name):
 
 # Función para reducción de ruido
 def advanced_noise_reduction(input_path, output_path):
-    # Carga el archivo de audio
-    y, sr = librosa.load(input_path, sr=None)
+    # Load the audio file
+    rate, data = wavfile.read(input_path)
 
-    # Reduce el ruido
-    reduced_noise = nr.reduce_noise(y=y, sr=sr)
+    # Reduce the noise
+    reduced_noise = nr.reduce_noise(y=data, sr=rate)
 
-    # Guarda el archivo con el ruido reducido
-    librosa.output.write_wav(output_path, reduced_noise, sr)
+    # Save the noise-reduced audio file
+    sf.write(output_path, reduced_noise, rate)
     print(f"Audio con reducción avanzada de ruido guardado en: {output_path}")
 
 # Flujo ETL: Descarga, procesado y subida
 def process_audio_file():
     # Asegurarse que los buckets existen
-    #ensure_bucket_exists(bucket_audio)
+    ensure_bucket_exists(bucket_audio)
     ensure_bucket_exists(bucket_audio_out)
 
     # Descargar el archivo de entrada desde S3
