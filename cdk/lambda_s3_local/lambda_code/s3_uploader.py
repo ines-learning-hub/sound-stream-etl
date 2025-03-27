@@ -15,9 +15,17 @@ class S3Uploader:
                 body = json.loads(event)
             else:
                 body = event
+            
+            # Extraer datos del JSON de audio
+            timestamp = body.get("timestamp", "unknown")
+            audio_data = body.get("audioData", {})
 
-            filename = body.get("filename", "archivo.txt")
-            content = body.get("content", "Contenido por defecto")
+            # Usar el timestamp como nombre de archivo
+            filename = f"audio_{timestamp}.json"
+            content = json.dumps(audio_data)  # Convertir el contenido a string JSON
+
+            #filename = body.get("filename", "archivo.txt")
+            #content = body.get("content", "Contenido por defecto")
             return filename, content
         except Exception as e:
             raise ValueError(f"Error procesando el evento: {e}")

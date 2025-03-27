@@ -7,7 +7,7 @@ services:
     ports:
       - "4566:4566"
     environment:
-      - SERVICES=s3,lambda, ssm, cloudformation, iam #engadir logs e glue
+      - SERVICES=s3,lambda, apigateway, ssm, cloudformation, iam #engadir logs e glue
       - DEBUG=1
       - DATA_DIR=/tmp/localstack/data
       - LAMBDA_EXECUTOR=docker-reuse
