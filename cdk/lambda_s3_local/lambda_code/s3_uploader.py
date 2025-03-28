@@ -30,7 +30,7 @@ class S3Uploader:
             file_name = self.generate_filename(event)
 
             self.upload_to_s3(file_data, file_name)
-
+            self.notify_glue(file_name)
             return {
                 "statusCode": 200,
                 "body": f"Archivo subido correctamente como {file_name}."
@@ -45,7 +45,7 @@ class S3Uploader:
 
     def generate_filename(self, event):
         timestamp = int(time.time() * 1000)  
-        return f"audio_{timestamp}.wav"
+        return f"audio_{timestamp}.webm"
 
     def upload_to_s3(self, file_data, file_name):
         try:
@@ -58,6 +58,22 @@ class S3Uploader:
         except Exception as e:
             raise RuntimeError(f"Error subiendo archivo a S3: {e}")
 
+    def notify_glue(self, file_name):
+        try:
+            # Configuración del cliente SNS
+            sns = boto3.client("sns", endpoint_url="http://172.31.205.25:4566")  # Reemplaza con la IP correcta si es necesario
+            topic_arn = "arn:aws:sns:us-east-1:000000000000:my-local-topic"  # Reemplaza con tu ARN
+            
+            # Publicar mensaje al tema SNS
+            response = sns.publish(
+                TopicArn=topic_arn,
+                Message=f'{{"bucket_name": "my-local-bucket", "key_name": "{file_name}"}}',
+            )
+            
+            print(f"Notificación enviada exitosamente: {response}")
+        except Exception as e:
+            print(f"[ERROR] Falló la publicación al tema SNS: {e}")
+      
     def _response(self, status_code, message):
         return {
             "statusCode": status_code,

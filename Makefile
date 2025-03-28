@@ -2,9 +2,12 @@
 CDK=npx aws-cdk-local
 STACK_NAME=LambdaS3LocalStack
 ENDPOINT=http://localhost:4566
-BUCKET_NAME=my-local-bucket
+BUCKET_NAME=my-audio-bucket
+BUCKET_OUTPUT=my-audio-output-bucket
 LAMBDA_NAME=SaveToS3Function
 API_ID=$(shell awslocal apigateway get-rest-apis | grep '"id"' | head -1 | awk -F'"' '{print $$4}')
+LAMBDA_SNS=SNS
+STACK_SNS=ETLStack
 
 ### CDK ###
 bootstrap:
@@ -36,6 +39,9 @@ invoke:
 
 list-bucket:
 	awslocal s3 ls s3://$(BUCKET_NAME)
+
+list-output-bucket:
+	awslocal s3 ls s3://$(BUCKET_OUTPUT)
 
 get-object:
 	@awslocal s3 ls s3://$(BUCKET_NAME)/ | tail -n 1 | awk '{print $$4}' | xargs -r -I {} awslocal s3 cp s3://$(BUCKET_NAME)/{} -

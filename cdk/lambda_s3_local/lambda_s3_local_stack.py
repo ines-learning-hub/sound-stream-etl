@@ -3,8 +3,11 @@ from aws_cdk import (
     Environment,
     aws_lambda as _lambda,
     aws_s3 as s3,
+    aws_s3_notifications as s3_notifications,
     aws_apigateway as apigateway,
-    Duration
+    Duration, 
+    aws_sns as sns,
+    aws_iam as iam,
 )
 from constructs import Construct
 import os
@@ -15,7 +18,16 @@ class LambdaS3LocalStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
-        bucket = s3.Bucket(self, "LocalBucket", bucket_name="my-local-bucket")
+        bucket = s3.Bucket(self, "LocalBucket", bucket_name="my-audio-bucket")
+        bucket_out = s3.Bucket(self, "OutputBucket", bucket_name="my-audio-output-bucket")
+
+        topic = sns.Topic(self, "LocalTopic", topic_name="my-local-topic")
+        # Configurar notificación del bucket hacia el tema SNS
+        
+        bucket.add_event_notification(
+            s3.EventType.OBJECT_CREATED,  # Evento que activa la notificación
+            s3_notifications.SnsDestination(topic)
+        )
 
         lambda_fn = _lambda.Function(
             self, "SaveToS3Function",
@@ -49,3 +61,4 @@ class LambdaS3LocalStack(Stack):
             "POST",
             apigateway.LambdaIntegration(lambda_fn),
         )
+

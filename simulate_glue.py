@@ -4,14 +4,20 @@ import noisereduce as nr
 import soundfile as sf
 import io
 from scipy.io import wavfile
+import time
+import os
+import re
+from dotenv import load_dotenv
+load_dotenv()
 
 # Cliente S3 con LocalStack
-s3 = boto3.client("s3", endpoint_url="http://172.26.178.148:4566")
+s3 = boto3.client("s3", endpoint_url="http://"+os.getenv("IP_ADDRESS")+":4566")
 
 # Buckets y claves
 bucket_audio = "my-audio-bucket"
 bucket_audio_out = "my-audio-output-bucket"
-input_key_audio = "engine-6000.wav"  # Esto es una prueba
+pattern = r"audio_\d+\.wav"
+input_key_audio = "audio_1743165630522.wav"
 
 # Verifica si el bucket existe, y si no, lo crea
 def ensure_bucket_exists(bucket_name):
@@ -25,16 +31,16 @@ def ensure_bucket_exists(bucket_name):
 # Función para reducción de ruido en memoria
 def advanced_noise_reduction_in_memory(audio_data):
     # Cargar el audio desde el objeto de memoria
-    rate, data = wavfile.read(audio_data)
+    # rate, data = wavfile.read(audio_data)
 
-    # Realizar la reducción de ruido
-    reduced_noise = nr.reduce_noise(y=data, sr=rate)
+    # # Realizar la reducción de ruido
+    # reduced_noise = nr.reduce_noise(y=data, sr=rate)
 
-    # Guardar el audio reducido en un objeto de memoria
-    output_audio = io.BytesIO()
-    sf.write(output_audio, reduced_noise, rate, format="wav")
-    output_audio.seek(0)  # Resetear el cursor del archivo
-    return output_audio
+    # # Guardar el audio reducido en un objeto de memoria
+    # output_audio = io.BytesIO()
+    # sf.write(output_audio, reduced_noise, rate, format="wav")
+    # output_audio.seek(0)  # Resetear el cursor del archivo
+    return audio_data
 
 # Flujo ETL: Descarga, procesado y subida
 def process_audio_file():
@@ -71,3 +77,38 @@ def process_audio_file():
 
 # Ejecutar el flujo ETL
 process_audio_file()
+
+sqs = boto3.client("sqs", endpoint_url="http://172.31.205.25:4566")
+queue_url = "http://172.26.178.148:4566/000000000000/my-test-queue"
+
+def ensure_queue_exists(queue_url):
+
+    try:
+        response = sqs.get_queue_url(QueueName=queue_name)
+        queue_url = response['QueueUrl']
+        return queue_url
+    except sqs.exceptions.QueueDoesNotExist:
+        # Crear la cola si no existe
+        print(f"La cola '{queue_name}' no existe. Creándola...")
+        response = sqs.create_queue(QueueName=queue_name)
+        queue_url = response['QueueUrl']
+        print(f"Cola creada en: {queue_url}")
+        return queue_url
+
+
+def poll_sqs_messages():
+    print("Esperando mensajes en la cola SQS...")
+    while True:
+        response = sqs.receive_message(QueueUrl=queue_url, MaxNumberOfMessages=1)
+        if "Messages" in response:
+            for message in response["Messages"]:
+                print(f"Mensaje recibido: {message['Body']}")
+                
+                # Eliminar el mensaje de la cola para que no se procese de nuevo
+                sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=message["ReceiptHandle"])
+                print("Mensaje eliminado de la cola.")
+        
+        # Esperar antes de volver a consultar
+        time.sleep(5)
+
+# poll_sqs_messages()
