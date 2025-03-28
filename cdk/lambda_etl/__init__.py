@@ -1,0 +1,1 @@
+# es un metodo dunder, inicializa el proceso tiene que estar vacíocd

@@ -8,6 +8,7 @@ LAMBDA_NAME=SaveToS3Function
 API_ID=$(shell awslocal apigateway get-rest-apis | grep '"id"' | head -1 | awk -F'"' '{print $$4}')
 LAMBDA_SNS=SNS
 STACK_SNS=ETLStack
+ETL_STACK=LambdaETLStack
 
 ### CDK ###
 bootstrap:
@@ -19,6 +20,8 @@ synth:
 deploy:
 	cd cdk && $(CDK) deploy $(STACK_NAME) --require-approval never --app "python3 app.py"
 
+deploy-etl:
+	cd cdk && $(CDK) deploy $(ETL_STACK) --require-approval never --app "python3 app.py
 destroy:
 	$(CDK) destroy $(STACK_NAME) --force
 	
