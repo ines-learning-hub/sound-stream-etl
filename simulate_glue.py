@@ -59,7 +59,7 @@ def process_audio_file():
     processed_audio = advanced_noise_reduction_in_memory(audio_data)
 
     # Subir el archivo procesado al bucket de salida
-    output_key = f"processed/{input_key_audio}"
+    output_key = f"{input_key_audio}"
     print(f"Subiendo {output_key} a s3://{bucket_audio_out}/...")
     s3.put_object(
         Bucket=bucket_audio_out,
