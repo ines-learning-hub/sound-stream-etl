@@ -6,6 +6,8 @@ const oscillator = audioContext.createOscillator();
 oscillator.type = 'sawtooth'; 
 oscillator.frequency.value = 120; 
 
+let oscillatorStarted = false;
+
 // Crear el nodo de ganancia (controlar el volumen)
 const gainNode = audioContext.createGain();
 gainNode.gain.value = 0.3; 
@@ -40,7 +42,6 @@ function changeFrequency() {
 
 // Configurar variables para grabación
 let mediaRecorder;
-let audioChunks = [];
 let stopTimeout;
 
 // Función para iniciar la grabación
@@ -53,16 +54,13 @@ async function startRecording() {
     // Configurar el MediaRecorder con el stream de audio
     mediaRecorder = new MediaRecorder(audioStream.stream);
 
-    mediaRecorder.ondataavailable = (event) => {
-      audioChunks.push(event.data); // Almacenar los fragmentos grabados
-    };
+    // Procesar cada fragmento de audio tan pronto como esté disponible
+    mediaRecorder.ondataavailable = async (event) => {
+      console.log("Fragmento de audio disponible:", event.data);
+      const audioBlob = new Blob([event.data], { type: 'audio/webm;codecs=opus' }); // Crear el blob individual
+      console.log("Enviando fragmento de audio a Lambda:", audioBlob.size);
 
-    mediaRecorder.onstop = async () => {
-      // Crear un Blob con el audio grabado
-      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-      audioChunks = []; // Limpiar los fragmentos para la próxima grabación
-
-      // Enviar el archivo de audio a Lambda
+      // Enviar el fragmento de audio a Lambda
       await sendToLambda(audioBlob);
     };
 
@@ -87,41 +85,57 @@ function stopRecording() {
   clearTimeout(stopTimeout); // Limpiar el temporizador
 }
 
-// Función para enviar audio a Lambda
-async function sendToLambda(audioBlob) {
-  const lambdaApiUrl = 'http://localhost:4566/restapis/2ouxiqjnyl/prod/_user_request_/items';
-
-  try {
-    const response = await fetch(lambdaApiUrl, {
-      method: 'POST',
-      headers: {
-        "Content-Type": "application/octet-stream", // Indicar que se envía un archivo binario
-      },
-      body: audioBlob, // Enviar directamente el Blob como cuerpo
-      mode: 'cors', // Habilitar CORS
-    });
-
-    if (!response.ok) {
-      throw new Error(`Error HTTP: ${response.status}`);
-    }
-
-    console.log("Audio enviado exitosamente a Lambda.");
-  } catch (error) {
-    console.error("Error al enviar audio a Lambda:", error);
+// Función para cargar configuración dinámica
+async function fetchConfig() {
+  const response = await fetch('config.json'); // Carga el archivo generado
+  if (!response.ok) {
+    throw new Error("No se pudo cargar config.json");
   }
+  return response.json();
 }
 
+let lambdaApiUrl;
 
-// Iniciar automáticamente el sonido y la grabación al cargar la página
 (async () => {
   try {
-    await audioContext.resume();
-    oscillator.start();
-    console.log("Sonido de maquinaria iniciado.");
+      // Cargar configuración desde config.json
+      const config = await fetchConfig();
+      lambdaApiUrl = config.lambdaApiUrl;
 
-    setInterval(changeFrequency, 2000); // Cambiar la frecuencia periódicamente
-    startRecording(); // Iniciar grabación de audio
+      await audioContext.resume();
+
+      if (!oscillatorStarted) {
+        oscillator.start();
+        oscillatorStarted = true; // Marcar como iniciado
+        console.log("Sonido de maquinaria iniciado.");
+      }
+
+      setInterval(changeFrequency, 2000); // Cambiar la frecuencia periódicamente
+      startRecording(); // Iniciar grabación de audio
   } catch (error) {
-    console.error('Error al iniciar el sonido:', error);
+      console.error('Error al cargar configuración o iniciar el sonido:', error);
   }
 })();
+
+// Función para enviar audio a Lambda
+async function sendToLambda(audioBlob) {
+  try {
+      console.log("Enviando fragmento a Lambda:", audioBlob.size);
+      const response = await fetch(lambdaApiUrl, {
+          method: 'POST',
+          headers: {
+              "Content-Type": "application/octet-stream", // Indicar que se envía un archivo binario
+          },
+          body: audioBlob, // Enviar directamente el Blob como cuerpo
+          mode: 'cors', // Habilitar CORS
+      });
+
+      if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status}`);
+      }
+
+      console.log("Audio enviado exitosamente a Lambda.");
+  } catch (error) {
+      console.error("Error al enviar audio a Lambda:", error);
+  }
+}

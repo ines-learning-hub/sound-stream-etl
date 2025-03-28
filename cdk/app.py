@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import aws_cdk as cdk
+import ssl
 from lambda_s3_local.lambda_s3_local_stack import LambdaS3LocalStack
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 app = cdk.App()
 

@@ -33,15 +33,11 @@ class LambdaS3LocalStack(Stack):
         bucket.grant_put(lambda_fn)
 
         # Crear API Gateway y conectar la Lambda
-        api = apigateway.LambdaRestApi(
-            self,
-            "SaveToS3Api",
-            handler=lambda_fn,
-            proxy=False,
+        api = apigateway.RestApi(
+            self,"SaveToS3Api",
             rest_api_name="SaveToS3API",
             default_cors_preflight_options={
                 "allow_origins": ["*"],  # Permitir solo solicitudes desde localhost:5500
-                "max_age": Duration.seconds(86400),
                 "allow_methods": ["OPTIONS", "POST"],  # Permitir solo el método POST
                 "allow_headers": ["Content-Type"],  # Especificar encabezados permitidos
             },
