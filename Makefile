@@ -46,6 +46,9 @@ clean:
 list-api:
 	awslocal apigateway get-rest-apis
 
+generate-config:
+	echo '{ "lambdaApiUrl": "http://localhost:4566/restapis/$(API_ID)/prod/_user_request_/items" }' > audio/config.json
+
 invoke-api:
 	curl -X POST \
         -H "Content-Type: application/octet-stream" \

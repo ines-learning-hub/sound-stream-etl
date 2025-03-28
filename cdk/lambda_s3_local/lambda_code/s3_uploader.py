@@ -1,5 +1,6 @@
 import boto3
 import os
+import time
 import traceback
 
 class S3Uploader:
@@ -43,8 +44,8 @@ class S3Uploader:
             }
 
     def generate_filename(self, event):
-        request_id = event['requestContext']['requestId'] if 'requestContext' in event else 'unknown'
-        return f"audio_{request_id}.wav"
+        timestamp = int(time.time() * 1000)  
+        return f"audio_{timestamp}.wav"
 
     def upload_to_s3(self, file_data, file_name):
         try:
@@ -56,5 +57,16 @@ class S3Uploader:
             )
         except Exception as e:
             raise RuntimeError(f"Error subiendo archivo a S3: {e}")
+
+    def _response(self, status_code, message):
+        return {
+            "statusCode": status_code,
+            "headers": {
+                "Access-Control-Allow-Origin": "*",  # ⬅️ Permite acceso desde cualquier origen
+                "Access-Control-Allow-Methods": "OPTIONS, POST",
+                "Access-Control-Allow-Headers": "Content-Type"
+            },
+            "body": message
+        }
 
 
