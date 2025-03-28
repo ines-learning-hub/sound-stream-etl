@@ -4,10 +4,11 @@ import time
 import traceback
 
 class S3Uploader:
-    def __init__(self):
-        self.bucket_name = os.environ["BUCKET_NAME"]
-        self.endpoint_url = os.environ.get("LOCALSTACK_ENDPOINT", "http://localhost:4566")
+    def __init__(self, bucket_name, endpoint):
+        self.bucket_name = bucket_name
+        self.endpoint_url = endpoint
         self.s3_client = boto3.client("s3", endpoint_url=self.endpoint_url)
+        self.sns = boto3.client("sns",endpoint_url=self.endpoint_url)
 
     def handle_request(self, event):
         try:
@@ -30,10 +31,10 @@ class S3Uploader:
             file_name = self.generate_filename(event)
 
             self.upload_to_s3(file_data, file_name)
-            self.notify_glue(file_name)
             return {
                 "statusCode": 200,
-                "body": f"Archivo subido correctamente como {file_name}."
+                "body": f"Archivo subido correctamente como {file_name}.",
+                "file_name" : file_name
             }
         except Exception as e:
             print("[ERROR]", str(e))
@@ -45,7 +46,7 @@ class S3Uploader:
 
     def generate_filename(self, event):
         timestamp = int(time.time() * 1000)  
-        return f"audio_{timestamp}.webm"
+        return f"audio_{timestamp}.wav"
 
     def upload_to_s3(self, file_data, file_name):
         try:
@@ -58,27 +59,22 @@ class S3Uploader:
         except Exception as e:
             raise RuntimeError(f"Error subiendo archivo a S3: {e}")
 
-    def notify_glue(self, file_name):
+    def notify_glue(self, file_name, topic_arn):
         try:
-            # Configuración del cliente SNS
-            sns = boto3.client("sns", endpoint_url="http://172.31.205.25:4566")  # Reemplaza con la IP correcta si es necesario
-            topic_arn = "arn:aws:sns:us-east-1:000000000000:my-local-topic"  # Reemplaza con tu ARN
-            
-            # Publicar mensaje al tema SNS
-            response = sns.publish(
+            response = self.sns.publish(
                 TopicArn=topic_arn,
-                Message=f'{{"bucket_name": "my-local-bucket", "key_name": "{file_name}"}}',
+                Message=f'{{"bucket_name": "{self.bucket_name}", "file_name": "{file_name}"}}',
             )
             
             print(f"Notificación enviada exitosamente: {response}")
         except Exception as e:
             print(f"[ERROR] Falló la publicación al tema SNS: {e}")
-      
+
     def _response(self, status_code, message):
         return {
             "statusCode": status_code,
             "headers": {
-                "Access-Control-Allow-Origin": "*",  # ⬅️ Permite acceso desde cualquier origen
+                "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "OPTIONS, POST",
                 "Access-Control-Allow-Headers": "Content-Type"
             },
