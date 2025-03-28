@@ -17,18 +17,12 @@ load_dotenv()
 class LambdaS3LocalStack(Stack):
     def __init__(self, scope: Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
-
+        
         bucket = s3.Bucket(self, "LocalBucket", bucket_name="my-audio-bucket")
         bucket_out = s3.Bucket(self, "OutputBucket", bucket_name="my-audio-output-bucket")
 
-        topic = sns.Topic(self, "LocalTopic", topic_name="my-local-topic")
-        # Configurar notificación del bucket hacia el tema SNS
-        
-        bucket.add_event_notification(
-            s3.EventType.OBJECT_CREATED,  # Evento que activa la notificación
-            s3_notifications.SnsDestination(topic)
-        )
-
+        topic= sns.Topic(self, "LocalTopic", topic_name="audio-upload-topic")
+       
         lambda_fn = _lambda.Function(
             self, "SaveToS3Function",
             runtime=_lambda.Runtime.PYTHON_3_9,
@@ -38,7 +32,8 @@ class LambdaS3LocalStack(Stack):
             timeout=Duration.seconds(10),
             environment={
                 "BUCKET_NAME": bucket.bucket_name,
-                "LOCALSTACK_ENDPOINT": "http://"+os.getenv("IP_ADDRESS")+":4566"
+                "LOCALSTACK_ENDPOINT": "http://"+os.getenv("IP_ADDRESS")+":4566",
+                "TOPIC_ARN":  topic.topic_arn
             }
         )
 
