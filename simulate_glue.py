@@ -32,13 +32,13 @@ def ensure_bucket_exists(bucket_name):
 
 # Función para reducción de ruido en memoria
 def advanced_noise_reduction_in_memory(audio_data):
-    # Cargar el audio desde el objeto de memoria
     try:
         audio_data.seek(0)  # Asegúrate de que el puntero esté al inicio
         data, rate = sf.read(audio_data, dtype='int16')
     except Exception as e:
         print(f"[ERROR] Fallo al leer el archivo con soundfile: {e}")
-        return
+        return None
+
     # Realizar la reducción de ruido
     reduced_noise = nr.reduce_noise(y=data, sr=rate)
 
@@ -47,7 +47,8 @@ def advanced_noise_reduction_in_memory(audio_data):
     sf.write(output_audio, reduced_noise, rate, format="wav")
     output_audio.seek(0)  # Resetear el cursor del archivo
     print("Reducción de ruido completada")
-    return audio_data
+    return output_audio
+
 
 # Flujo ETL: Descarga, procesado y subida
 def process_audio_file(audio_file):
@@ -82,14 +83,12 @@ def process_audio_file(audio_file):
         print("[ERROR] Detalles de stderr:", e.stderr.decode("utf-8"))
         return
 
-        # Reducir ruido en el archivo convertido
-    print("Aplicando reducción de ruido...")
+    # Reducir ruido en el archivo convertido
     processed_audio = advanced_noise_reduction_in_memory(converted_audio)
 
     # Subir el archivo procesado al bucket de salida
     output_key = f"{audio_file.split('.')[0]}.wav"
     # print(f"Procesando reducción de ruido para {audio_file}...")
-    #processed_audio = advanced_noise_reduction_in_memory(audio_data)
 
     # print(f"Subiendo {output_key} a s3://{bucket_audio_out}/...")
     s3.put_object(
@@ -97,7 +96,7 @@ def process_audio_file(audio_file):
         Key=output_key,
         Body=processed_audio
     )
-    # print(f"Archivo procesado subido correctamente a s3://{bucket_audio_out}/{output_key}")
+    print(f"Archivo procesado subido correctamente a s3://{bucket_audio_out}/{output_key}")
 
 
 def setup_sqs(queue_name):
