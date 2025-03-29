@@ -9,6 +9,7 @@ import os
 import re
 import json
 from dotenv import load_dotenv
+import ffmpeg
 from cdk.lambda_s3_local.lambda_code.s3_uploader import S3Uploader
 
 load_dotenv()
@@ -32,15 +33,20 @@ def ensure_bucket_exists(bucket_name):
 # Función para reducción de ruido en memoria
 def advanced_noise_reduction_in_memory(audio_data):
     # Cargar el audio desde el objeto de memoria
-    # rate, data = wavfile.read(audio_data)
+    try:
+        audio_data.seek(0)  # Asegúrate de que el puntero esté al inicio
+        data, rate = sf.read(audio_data, dtype='int16')
+    except Exception as e:
+        print(f"[ERROR] Fallo al leer el archivo con soundfile: {e}")
+        return
+    # Realizar la reducción de ruido
+    reduced_noise = nr.reduce_noise(y=data, sr=rate)
 
-    # # Realizar la reducción de ruido
-    # reduced_noise = nr.reduce_noise(y=data, sr=rate)
-
-    # # Guardar el audio reducido en un objeto de memoria
-    # output_audio = io.BytesIO()
-    # sf.write(output_audio, reduced_noise, rate, format="wav")
-    # output_audio.seek(0)  # Resetear el cursor del archivo
+    # Guardar el audio reducido en un objeto de memoria
+    output_audio = io.BytesIO()
+    sf.write(output_audio, reduced_noise, rate, format="wav")
+    output_audio.seek(0)  # Resetear el cursor del archivo
+    print("Reducción de ruido completada")
     return audio_data
 
 # Flujo ETL: Descarga, procesado y subida
@@ -49,7 +55,6 @@ def process_audio_file(audio_file):
     ensure_bucket_exists(bucket_audio)
     ensure_bucket_exists(bucket_audio_out)
 
-    # Descargar el archivo de entrada desde S3 directamente a memoria
     # print(f"Leyendo {audio_file} desde s3://{bucket_audio}/...")
     try:
         response = s3.get_object(Bucket=bucket_audio, Key=audio_file)
@@ -61,12 +66,31 @@ def process_audio_file(audio_file):
             print(f"Error al descargar el archivo: {e.response['Error']['Message']}")
         return
 
-    # Reducir ruido en el archivo descargado (en memoria)
-    # print(f"Procesando reducción de ruido para {audio_file}...")
-    processed_audio = advanced_noise_reduction_in_memory(audio_data)
+    try:
+        converted_audio = io.BytesIO()
+        process = (
+            ffmpeg
+            .input("pipe:0", format="webm")  # Entrada estándar
+            .output("pipe:1", format="wav")  # Salida estándar
+            .run(input=audio_data.getvalue(), capture_stdout=True, capture_stderr=True)
+        )
+        converted_audio.write(process[0])
+        converted_audio.seek(0)
+        print("Conversión a WAV completada.")
+    except ffmpeg.Error as e:
+        print(f"[ERROR] Error durante la conversión a WAV: {e}")
+        print("[ERROR] Detalles de stderr:", e.stderr.decode("utf-8"))
+        return
+
+        # Reducir ruido en el archivo convertido
+    print("Aplicando reducción de ruido...")
+    processed_audio = advanced_noise_reduction_in_memory(converted_audio)
 
     # Subir el archivo procesado al bucket de salida
-    output_key = f"{audio_file}"
+    output_key = f"{audio_file.split('.')[0]}.wav"
+    # print(f"Procesando reducción de ruido para {audio_file}...")
+    #processed_audio = advanced_noise_reduction_in_memory(audio_data)
+
     # print(f"Subiendo {output_key} a s3://{bucket_audio_out}/...")
     s3.put_object(
         Bucket=bucket_audio_out,
@@ -144,6 +168,7 @@ def poll_sqs_messages(sqs, queue_url):
                 print()
         time.sleep(5)
 
-sqs = boto3.client("sqs",  endpoint_url="http://"+os.getenv("IP_ADDRESS")+":4566")
-setup_sqs('s3-queue')
-poll_sqs_messages(sqs, "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/s3-queue")
+#sqs = boto3.client("sqs",  endpoint_url="http://"+os.getenv("IP_ADDRESS")+":4566")
+#setup_sqs('s3-queue')
+#poll_sqs_messages(sqs, "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/s3-queue")
+process_audio_file('engine-6000.webm')

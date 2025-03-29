@@ -46,7 +46,7 @@ class S3Uploader:
 
     def generate_filename(self, event):
         timestamp = int(time.time() * 1000)  
-        return f"audio_{timestamp}.wav"
+        return f"audio_{timestamp}.webm" # Prueba tmp
 
     def upload_to_s3(self, file_data, file_name):
         try:

@@ -8,3 +8,4 @@ pyspark
 noisereduce
 scipy
 soundfile
+ffmpeg-python
