@@ -2,6 +2,7 @@ import boto3
 import os
 import time
 import traceback
+import base64
 
 class S3Uploader:
     def __init__(self, bucket_name, endpoint):
@@ -18,16 +19,14 @@ class S3Uploader:
                     "body": "No se proporcionó ningún archivo en la solicitud."
                 }
 
-             # Validar el tipo de contenido
-            content_type = event['headers'].get('Content-Type', '')
-            if content_type != 'application/octet-stream':
-                return {
-                    "statusCode": 400,
-                    "body": "Tipo de contenido inválido. Se espera 'application/octet-stream'."
-                }
+             # 🔥 Revisión: Si el evento tiene 'isBase64Encoded', decodificarlo
+            file_data = base64.b64decode(event['body']) if event.get("isBase64Encoded", False) else event['body']
+
+            # Asegurar que el archivo tenga formato binario correcto
+            if isinstance(file_data, str):
+                file_data = file_data.encode("utf-8")
 
             # Extraer los datos binarios del archivo y generar un nombre único
-            file_data = event['body']  # Datos binarios del archivo enviado
             file_name = self.generate_filename(event)
 
             self.upload_to_s3(file_data, file_name)
@@ -54,7 +53,8 @@ class S3Uploader:
             self.s3_client.put_object(
                 Bucket=self.bucket_name,
                 Key=file_name,
-                Body=file_data
+                Body=file_data,
+                ContentType="audio/webm"
             )
         except Exception as e:
             raise RuntimeError(f"Error subiendo archivo a S3: {e}")

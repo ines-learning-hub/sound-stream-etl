@@ -43,6 +43,7 @@ class LambdaS3LocalStack(Stack):
         api = apigateway.RestApi(
             self,"SaveToS3Api",
             rest_api_name="SaveToS3API",
+            binary_media_types=["audio/webm"],
             default_cors_preflight_options={
                 "allow_origins": ["*"],  # Permitir solo solicitudes desde localhost:5500
                 "allow_methods": ["OPTIONS", "POST"],  # Permitir solo el método POST
