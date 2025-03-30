@@ -160,7 +160,7 @@ def poll_sqs_messages(sqs, queue_url):
                 sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=message["ReceiptHandle"])
                 print(f"Audio {data['file_name']} procesado y eliminado de cola")
                 print()
-        time.sleep(30)
+        time.sleep(5)
 
 sqs = boto3.client("sqs",  endpoint_url="http://"+os.getenv("IP_ADDRESS")+":4566")
 setup_sqs('s3-queue')
