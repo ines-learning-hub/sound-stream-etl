@@ -21,7 +21,7 @@ deploy:
 	cd cdk && $(CDK) deploy $(STACK_NAME) --require-approval never --app "python3 app.py"
 
 deploy-etl:
-	cd cdk && $(CDK) deploy $(ETL_STACK) --require-approval never --app "python3 app.py
+	cd cdk && $(CDK) deploy $(ETL_STACK) --require-approval never --app "python3 app.py"
 destroy:
 	$(CDK) destroy $(STACK_NAME) --force
 	
