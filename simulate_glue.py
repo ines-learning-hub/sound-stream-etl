@@ -167,7 +167,7 @@ def poll_sqs_messages(sqs, queue_url):
                 print()
         time.sleep(5)
 
-#sqs = boto3.client("sqs",  endpoint_url="http://"+os.getenv("IP_ADDRESS")+":4566")
-#setup_sqs('s3-queue')
-#poll_sqs_messages(sqs, "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/s3-queue")
-process_audio_file('engine-6000.webm')
+sqs = boto3.client("sqs",  endpoint_url="http://"+os.getenv("IP_ADDRESS")+":4566")
+setup_sqs('s3-queue')
+poll_sqs_messages(sqs, "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/s3-queue")
+#process_audio_file('engine-6000.webm')
