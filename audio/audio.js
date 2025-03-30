@@ -64,7 +64,7 @@ async function startRecording() {
       await sendToLambda(audioBlob);
     };
 
-    mediaRecorder.start(5000); // Grabar en bloques de 5 segundos
+    mediaRecorder.start(1000); // Grabar en bloques de 5 segundos
     console.log("Grabación iniciada");
 
     // Configurar temporizador para detener después de 30 segundos

@@ -2,15 +2,11 @@ import boto3
 import botocore
 import noisereduce as nr
 import soundfile as sf
-import io
-from scipy.io import wavfile
-import time
 import os
-import re
-import json
-from dotenv import load_dotenv
 import ffmpeg
-from cdk.lambda_s3_local.lambda_code.s3_uploader import S3Uploader
+import tempfile
+from dotenv import load_dotenv
+import time, json
 
 load_dotenv()
 endpoint="http://"+os.getenv("IP_ADDRESS")+":4566"
@@ -31,76 +27,75 @@ def ensure_bucket_exists(bucket_name):
         # s3.create_bucket(Bucket=bucket_name)
 
 # Función para reducción de ruido en memoria
-def advanced_noise_reduction_in_memory(audio_data):
+def advanced_noise_reduction_in_file(input_path, output_path):
     try:
-        audio_data.seek(0)  # Asegúrate de que el puntero esté al inicio
-        data, rate = sf.read(audio_data, dtype='int16')
+        with sf.SoundFile(input_path) as file:
+            data = file.read(dtype='int16')
+            rate = file.samplerate
+        reduced_noise = nr.reduce_noise(y=data, sr=rate)
+        sf.write(output_path, reduced_noise, rate, format="wav")
+        print("Reducción de ruido completada.")
     except Exception as e:
-        print(f"[ERROR] Fallo al leer el archivo con soundfile: {e}")
-        return None
-
-    # Realizar la reducción de ruido
-    reduced_noise = nr.reduce_noise(y=data, sr=rate)
-
-    # Guardar el audio reducido en un objeto de memoria
-    output_audio = io.BytesIO()
-    sf.write(output_audio, reduced_noise, rate, format="wav")
-    output_audio.seek(0)  # Resetear el cursor del archivo
-    print("Reducción de ruido completada")
-    return output_audio
+        print(f"[ERROR] Fallo durante la reducción de ruido: {e}")
 
 
 # Flujo ETL: Descarga, procesado y subida
 def process_audio_file(audio_file):
-    # Asegurarse que los buckets existen
     ensure_bucket_exists(bucket_audio)
     ensure_bucket_exists(bucket_audio_out)
 
-    # print(f"Leyendo {audio_file} desde s3://{bucket_audio}/...")
     try:
-        response = s3.get_object(Bucket=bucket_audio, Key=audio_file)
-        audio_data = io.BytesIO(response['Body'].read())
+        # Descargar el archivo a un archivo temporal local
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".webm") as temp_input_file:
+            print(f"Descargando archivo {audio_file} a {temp_input_file.name}")
+            s3.download_fileobj(bucket_audio, audio_file, temp_input_file)
+            temp_input_path = temp_input_file.name
     except botocore.exceptions.ClientError as e:
-        if e.response['Error']['Code'] == 'NoSuchKey':
-            print(f"El archivo {audio_file} no existe en el bucket {bucket_audio}.")
-        else:
-            print(f"Error al descargar el archivo: {e.response['Error']['Message']}")
+        print(f"Error al descargar el archivo: {e.response['Error']['Message']}")
         return
 
     try:
-        converted_audio = io.BytesIO()
-        process = (
-            ffmpeg
-            .input("pipe:0", format="webm")  # Entrada estándar
-            .output("pipe:1", format="wav")  # Salida estándar
-            .run(input=audio_data.getvalue(), capture_stdout=True, capture_stderr=True)
-        )
-        converted_audio.write(process[0])
-        converted_audio.seek(0)
-        print("Conversión a WAV completada.")
+        # Convertir el archivo .webm a .wav
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_output_file:
+            temp_output_path = temp_output_file.name
+            print(f"Convirtiendo {temp_input_path} a {temp_output_path} (WAV)")
+            (
+                ffmpeg
+                .input(temp_input_path)
+                .output(temp_output_path, format="wav", ac=1, ar="16000")  # Monocanal, 16 kHz
+                .run(quiet=True, overwrite_output=True)
+            )
     except ffmpeg.Error as e:
         print(f"[ERROR] Error durante la conversión a WAV: {e}")
-        print("[ERROR] Detalles de stderr:", e.stderr.decode("utf-8"))
         return
 
-    # Reducir ruido en el archivo convertido
-    processed_audio = advanced_noise_reduction_in_memory(converted_audio)
+    try:
+        # Aplicar reducción de ruido
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_reduced_file:
+            reduced_path = temp_reduced_file.name
+            advanced_noise_reduction_in_file(temp_output_path, reduced_path)
+    except Exception as e:
+        print(f"[ERROR] Fallo al procesar el archivo: {e}")
+        return
 
-    # Subir el archivo procesado al bucket de salida
-    output_key = f"{audio_file.split('.')[0]}.wav"
-    # print(f"Procesando reducción de ruido para {audio_file}...")
-
-    # print(f"Subiendo {output_key} a s3://{bucket_audio_out}/...")
-    s3.put_object(
-        Bucket=bucket_audio_out,
-        Key=output_key,
-        Body=processed_audio
-    )
-    print(f"Archivo procesado subido correctamente a s3://{bucket_audio_out}/{output_key}")
+    try:
+        # Subir el archivo procesado al bucket de salida
+        output_key = f"{os.path.splitext(audio_file)[0]}_processed.wav"
+        print(f"Subiendo {reduced_path} a s3://{bucket_audio_out}/{output_key}")
+        with open(reduced_path, "rb") as file:
+            s3.upload_fileobj(file, bucket_audio_out, output_key)
+    except Exception as e:
+        print(f"[ERROR] Fallo al subir el archivo procesado: {e}")
+    finally:
+        # Limpiar archivos temporales
+        os.remove(temp_input_path)
+        os.remove(temp_output_path)
+        os.remove(reduced_path)
+        print("Archivos temporales eliminados.")
 
 
 def setup_sqs(queue_name):
-    
+
     try:
         sns = boto3.client("sns",  endpoint_url="http://"+os.getenv("IP_ADDRESS")+":4566")
         topics = sns.list_topics()
@@ -143,7 +138,7 @@ def setup_sqs(queue_name):
         sns.subscribe(
             TopicArn=topic_arn,
             Protocol="sqs",
-            Endpoint=queue_arn 
+            Endpoint=queue_arn
         )
         print(f"[INFO] Cola SQS {queue_arn} suscrita al Topic SNS {topic_arn}")
         return sqs
@@ -159,13 +154,13 @@ def poll_sqs_messages(sqs, queue_url):
                 body=json.loads(message['Body'])
                 data=json.loads(body['Message'])
                 print(f"Audio recibido: {data['file_name']}")
-                
+
                 process_audio_file(data['file_name'])
 
                 sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=message["ReceiptHandle"])
                 print(f"Audio {data['file_name']} procesado y eliminado de cola")
                 print()
-        time.sleep(5)
+        time.sleep(30)
 
 sqs = boto3.client("sqs",  endpoint_url="http://"+os.getenv("IP_ADDRESS")+":4566")
 setup_sqs('s3-queue')
