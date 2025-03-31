@@ -19,14 +19,11 @@ class S3Uploader:
                     "body": "No se proporcionó ningún archivo en la solicitud."
                 }
 
-             # 🔥 Revisión: Si el evento tiene 'isBase64Encoded', decodificarlo
             file_data = base64.b64decode(event['body']) if event.get("isBase64Encoded", False) else event['body']
 
-            # Asegurar que el archivo tenga formato binario correcto
             if isinstance(file_data, str):
                 file_data = file_data.encode("utf-8")
 
-            # Extraer los datos binarios del archivo y generar un nombre único
             file_name = self.generate_filename(event)
 
             self.upload_to_s3(file_data, file_name)
@@ -45,7 +42,7 @@ class S3Uploader:
 
     def generate_filename(self, event):
         timestamp = int(time.time() * 1000)  
-        return f"audio_{timestamp}.webm" # Prueba tmp
+        return f"audio_{timestamp}.webm" 
 
     def upload_to_s3(self, file_data, file_name):
         try:

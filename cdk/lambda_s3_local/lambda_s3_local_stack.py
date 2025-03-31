@@ -21,6 +21,7 @@ class LambdaS3LocalStack(Stack):
         bucket = s3.Bucket(self, "LocalBucket", bucket_name="my-audio-bucket")
         bucket_out = s3.Bucket(self, "OutputBucket", bucket_name="my-audio-output-bucket")
 
+        #Creación de topic
         topic= sns.Topic(self, "LocalTopic", topic_name="audio-upload-topic")
        
         lambda_fn = _lambda.Function(
@@ -45,14 +46,13 @@ class LambdaS3LocalStack(Stack):
             rest_api_name="SaveToS3API",
             binary_media_types=["audio/webm"],
             default_cors_preflight_options={
-                "allow_origins": ["*"],  # Permitir solo solicitudes desde localhost:5500
-                "allow_methods": ["OPTIONS", "POST"],  # Permitir solo el método POST
-                "allow_headers": ["Content-Type"],  # Especificar encabezados permitidos
+                "allow_origins": ["*"],  
+                "allow_methods": ["OPTIONS", "POST"],  
+                "allow_headers": ["Content-Type"],  
             },
         )
 
-        # Agregar recurso "items" y habilitar el método POST
-        items = api.root.add_resource("items")  # Define /items como recurso
+        items = api.root.add_resource("items") 
         items.add_method(
             "POST",
             apigateway.LambdaIntegration(lambda_fn),
