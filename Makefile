@@ -18,7 +18,7 @@ synth:
 	cd cdk && $(CDK) synth --app "python3 app.py"
 
 deploy:
-	cd cdk && $(CDK) deploy $(STACK_NAME) --require-approval never --app "python3 app.py"
+	@echo '{ "lambdaApiUrl": "http://localhost:4566/restapis/$(API_ID)/prod/_user_request_/items" }' > audio/config.json && cd cdk && $(CDK) deploy $(STACK_NAME) --require-approval never --app "python3 app.py"
 
 deploy-etl:
 	cd cdk && $(CDK) deploy $(ETL_STACK) --require-approval never --app "python3 app.py"
@@ -54,9 +54,6 @@ clean:
 ### API GATEWAY ###
 list-api:
 	awslocal apigateway get-rest-apis
-
-generate-config:
-	echo '{ "lambdaApiUrl": "http://localhost:4566/restapis/$(API_ID)/prod/_user_request_/items" }' > audio/config.json
 
 invoke-api:
 	curl -X POST \
