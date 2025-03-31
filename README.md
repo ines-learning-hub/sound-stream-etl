@@ -9,7 +9,11 @@ Este proyecto simula una arquitectura mínima de AWS en tu **entorno local** usa
 - AWS Glue para transformar los datos
 
 ---
+## FLujo de datos
 
+![AWS](/img/aws.png)
+
+---
 ## ✅ Servicios utilizados y su propósito
 
 | Servicio AWS Simulado | Uso en el Proyecto |
