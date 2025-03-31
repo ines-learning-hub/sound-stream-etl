@@ -51,6 +51,15 @@ get-object:
 clean:
 	rm -f response.json
 
+### GLUE ###
+
+simulate:
+	python3 simulate_glue.py
+
+### WEB ###
+audio-generator:
+	cd audio && python -m http.server 8080
+
 ### API GATEWAY ###
 list-api:
 	awslocal apigateway get-rest-apis
