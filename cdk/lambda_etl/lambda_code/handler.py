@@ -68,12 +68,6 @@ def process_audio_file(file_name):
 
 def main(event, context):
     for message in event['Records']:
-        print('message', message.keys())
         body=json.loads(message['body'])
-  
-        # print("tipo mensaje", type(message))
         data=json.loads(body['Message'])
-        print(data)
-
-        print(f"Audio recibido desde lambda: {data['file_name']}")
         process_audio_file(data['file_name'])

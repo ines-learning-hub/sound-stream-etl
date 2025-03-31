@@ -10,6 +10,7 @@ import time, json
 
 load_dotenv()
 endpoint="http://"+os.getenv("IP_ADDRESS")+":4566"
+
 # Cliente S3 con LocalStack
 s3 = boto3.client("s3", endpoint_url=endpoint)
 
@@ -21,10 +22,9 @@ bucket_audio_out = "my-audio-output-bucket"
 def ensure_bucket_exists(bucket_name):
     try:
         s3.head_bucket(Bucket=bucket_name)
-        # print(f"Bucket {bucket_name} ya existe")
     except botocore.exceptions.ClientError:
+        s3.create_bucket(Bucket=bucket_name)
         print(f"Creando bucket {bucket_name}")
-        # s3.create_bucket(Bucket=bucket_name)
 
 # Función para reducción de ruido en memoria
 def advanced_noise_reduction_in_file(input_path, output_path):
@@ -165,4 +165,3 @@ def poll_sqs_messages(sqs, queue_url):
 sqs = boto3.client("sqs",  endpoint_url="http://"+os.getenv("IP_ADDRESS")+":4566")
 setup_sqs('s3-queue')
 poll_sqs_messages(sqs, "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/s3-queue")
-#process_audio_file('engine-6000.webm')
